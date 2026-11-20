@@ -26,8 +26,9 @@
 //                a content set with gameplay plugins a room uses or used lately (server/plugins/contentSets.js: the same
 //                shape with `vanilla: false`, its plugins, settings and modes)
 //     /cs/<cs16>/index.json, /cs/<cs16>/bounds/official.json of an official version this server enables (DESIGN §35.23,
-//                server/versions.js file): its manifest (`version`, data URLs under /data/versions/<slug>/) and its
-//                official-bounds snapshot, cached for good
+//                server/versions.js file): its manifest (`version`, data URLs under /data/versions/<slug>/; `i18n` is
+//                presentation-only and not part of `cs`, so the index is no-cache) and its official-bounds snapshot
+//                (bounds stay immutable)
 //     /data/versions/<slug>/<file>.json → another official version's data — only an enabled version's directory
 //                (versions.servedDirs(); the real path decides, in any spelling); `?v=` immutable like /data/. Every other
 //                path under data/versions/ is a 404, as before M1
@@ -215,9 +216,12 @@ export function createStaticHandler({ publicDir, dataDir, sharedDir, simDir = pa
         // its content, so cached for good; 404 for a set this server does not keep
         const m = CS_FILE.exec(decoded);
         const safe = !!m && !m[2].split('/').some((s) => s === '' || s === '.' || s === '..' || s.startsWith('.'));
-        const f = safe && m ? (versions?.file(m[1], m[2]) || (contents ? contents.file(m[1], m[2]) : null)) : null;
+        // version index may gain i18n/<lang>.json without a new cs (M3); must not be immutable or Firefox keeps the old one
+        const fromVersion = safe && m && versions ? versions.file(m[1], m[2]) : null;
+        const f = fromVersion || (safe && m && contents ? contents.file(m[1], m[2]) : null);
         if (!f) { sendError(req, res, 404, '页面不存在 · Not found', decoded.length <= 200 ? decoded : ''); return; }
-        await serveBuffer(req, res, { body: f.body, hash: `cs-${m[1]}-${(f.sha256 || 'index').slice(0, 8)}`, type: f.type || MIME['.json'], cacheControl: IMMUTABLE_JSON, key: `cs:${decoded}`, cache: gzipCache });
+        const cacheControl = fromVersion && m[2] === 'index.json' ? 'no-cache' : IMMUTABLE_JSON;
+        await serveBuffer(req, res, { body: f.body, hash: `cs-${m[1]}-${(f.sha256 || 'index').slice(0, 8)}`, type: f.type || MIME['.json'], cacheControl, key: `cs:${decoded}`, cache: gzipCache });
         return;
       }
       const body = Buffer.from(JSON.stringify(c.index));

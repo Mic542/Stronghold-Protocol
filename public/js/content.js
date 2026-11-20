@@ -621,7 +621,7 @@ const waiting = new Map();
  *   onBytes?: (n: number) => void }} opts
  * @returns {Promise<any>} the parsed JSON (rejects with the reason)
  */
-export async function fetchChecked(url, want, { fetch: doFetch, retryDelays = CONTENT_RETRY_MS, wait = sleep, timeoutMs = CONTENT_TIMEOUT_MS, onBytes = null }) {
+export async function fetchChecked(url, want, { fetch: doFetch, retryDelays = CONTENT_RETRY_MS, wait = sleep, timeoutMs = CONTENT_TIMEOUT_MS, onBytes = null, cache = 'default' } = {}) {
   for (let attempt = 0; ; attempt++) {
     const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
     let timer = null;
@@ -629,7 +629,8 @@ export async function fetchChecked(url, want, { fetch: doFetch, retryDelays = CO
     let res;
     let buf = null;
     try {
-      res = await Promise.race([doFetch(url, { cache: 'default', signal: ctrl?.signal }), timedOut]);
+      // version index may change presentation fields (i18n) without a new URL — prefer no-cache/reload over immutable disk hits
+      res = await Promise.race([doFetch(url, { cache, signal: ctrl?.signal }), timedOut]);
       if (res && res.ok) buf = await Promise.race([res.arrayBuffer(), timedOut]);
     } catch { res = null; }
     clearTimeout(timer);
@@ -727,7 +728,7 @@ export async function loadVersionSet(cs, id, { fetch: doFetch = defaultFetch, re
   const entry = versionById(id);
   if (!entry || entry.id === DEFAULT_VERSION) throw new Error(`not another official version: ${String(id)}`);
   const own = `/cs/${csUrlPart(cs)}/`;
-  const index = await fetchChecked(`${own}index.json`, null, { fetch: doFetch, retryDelays, wait, timeoutMs });
+  const index = await fetchChecked(`${own}index.json`, null, { fetch: doFetch, retryDelays, wait, timeoutMs, cache: 'no-cache' });
   if (!isObj(index) || index.cs !== cs || index.vanilla !== true || index.version !== id || !isObj(index.data)) throw new Error('the manifest is not that version\'s set');
   if (!Array.isArray(index.plugins) || index.plugins.length || !isObj(index.settings) || Object.keys(index.settings).length) throw new Error('a version set names plugins or settings');
   const entries = Object.entries(index.data);
@@ -753,6 +754,13 @@ export async function loadVersionSet(cs, id, { fetch: doFetch = defaultFetch, re
   await Promise.all(Array.from({ length: Math.min(CONTENT_PARALLEL, entries.length) }, worker));
   const bounds = await fetchChecked(official.url, official, { fetch: doFetch, retryDelays, wait, timeoutMs });
   if (!isObj(bounds) || bounds.v !== 1) throw new Error('bounds: not an official-bounds snapshot');
+  // optional per-version game-text overlays (M3): not part of cs; URLs must stay under this version's data prefix
+  const i18nEntries = isObj(index.i18n)
+    ? Object.entries(index.i18n).filter(([, f]) => isObj(f) && typeof f.url === 'string' && isContentHash(f.sha256) && Number.isInteger(f.bytes))
+    : [];
+  for (const [lang, f] of i18nEntries) {
+    if (!f.url.startsWith(`${prefix}i18n/`) || f.url.includes('..')) throw new Error(`i18n/${lang}: an address outside the version's i18n`);
+  }
   return { cs, index, values, bounds, version: id, scripts: [], canSim: true, nativeVerified: false };
 }
 
@@ -861,18 +869,39 @@ export function installContentSet({ store = appStore, data = dataStore, net = ap
     versionCache.delete(set.cs);
     versionCache.set(set.cs, set);
     while (versionCache.size > VERSION_CACHE) versionCache.delete(versionCache.keys().next().value);
-    // (a version's index carries no translations: its files take only the Chinese texts until M3 — data.js versionFiles)
-    data.setContent({ id: set.cs, values: set.values, overlay: null, langs: [] });
+    // version game texts: index.i18n/<lang> under /data/versions/<slug>/i18n/ (M3); absent → Chinese only (versionFiles)
+    const i18n = isObj(set.index?.i18n) ? set.index.i18n : {};
+    const overlay = (lang) => (isObj(i18n[lang])
+      ? fetchChecked(i18n[lang].url, i18n[lang], { fetch: doFetch, retryDelays, wait })
+      : Promise.resolve(null));
+    data.setContent({ id: set.cs, values: set.values, overlay, langs: Object.keys(i18n) });
     contentSet.set({ cs: set.cs, kind: 'version', version: set.version, status: 'ready', error: null, kitted: null });
     settleWaiting(set.cs);
     tell(set.cs, true);
+  };
+  /**
+   * Version `cs` ignores i18n hashes, so a cached set can predate `i18n/<lang>.json`. Re-read the live index and attach
+   * any i18n entries before showVersion wires overlays.
+   */
+  const refreshVersionI18n = async (set) => {
+    try {
+      // reload: bypass a prior immutable cache of the same /cs/<cs>/index.json (Firefox kept pre-i18n forever)
+      const index = await fetchChecked(`/cs/${csUrlPart(set.cs)}/index.json`, null, { fetch: doFetch, retryDelays, wait, cache: 'reload' });
+      if (isObj(index) && index.cs === set.cs && isObj(index.i18n)) set.index = { ...set.index, i18n: index.i18n };
+    } catch (err) {
+      console.warn(`[content] version i18n refresh skipped: ${err?.message || err}`);
+    }
+    return set;
   };
   const loadVersion = (cs, version) => {
     const mine = ++req;
     // the set on screen stays until this one is checked (header "Official versions")
     settleWaiting(null);
     const cached = versionCache.get(cs);
-    if (cached && cached.version === version) { showVersion(cached); return; }
+    if (cached && cached.version === version) {
+      refreshVersionI18n(cached).then((set) => { if (mine === req) showVersion(set); });
+      return;
+    }
     contentSet.set({ cs, kind: 'version', version, status: 'loading', loaded: 0, total: 0, error: null, kitted: null });
     loadVersionSet(cs, version, { fetch: doFetch, retryDelays, wait, onProgress: (loaded, total) => { if (mine === req) contentSet.set({ loaded, total }); } })
       .then((set) => { if (mine === req) showVersion(set); })

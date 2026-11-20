@@ -160,9 +160,21 @@ export function createVersionSets({ enabled, defaultId = DEFAULT_VERSION, dataDi
       if (!boundsOf(id)) return null;
       const body = /** @type {Buffer} */ (v.boundsBody);
       const cs16 = csUrlPart(v.content.cs);
+      /** @type {Record<string, { file: string, sha256: string, bytes: number }> | null} */
+      let i18n = null;
+      try {
+        const enPath = path.join(v.dir, 'i18n', 'en.json');
+        if (fs.existsSync(enPath)) {
+          const buf = fs.readFileSync(enPath);
+          i18n = { en: { file: 'i18n/en.json', sha256: nodeSha256(buf), bytes: buf.length } };
+        }
+      } catch (e) {
+        log.warn(`[versions] ${id} i18n/en.json unreadable (${e?.code || e?.message || e})`);
+      }
       v.index = Buffer.from(JSON.stringify(contentIndexOf(/** @type {any} */ (v.content), {
         dataUrl: v.content.dataUrl, version: id,
         bounds: { url: `/cs/${cs16}/bounds/official.json`, sha256: nodeSha256(body), bytes: body.length },
+        i18n,
       })));
     }
     return v.index;

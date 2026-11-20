@@ -464,7 +464,8 @@ test('HTTP (M1, DESIGN §35.23): an enabled version\'s data is served (immutable
       const cs = srv.versions.csOf(id);
       const ir = await get(`/cs/${cs.slice(0, 16)}/index.json`);
       assert.equal(ir.status, 200);
-      assert.equal(ir.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+      // version index lists optional i18n without changing cs — must revalidate (not immutable)
+      assert.equal(ir.headers.get('cache-control'), 'no-cache');
       const index = await ir.json();
       assert.equal(index.cs, cs);
       assert.equal(index.version, id);
