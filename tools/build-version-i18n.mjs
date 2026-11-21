@@ -113,12 +113,16 @@ export function buildVersionOverlay({ data, reuseMap = {}, dict = {}, pathLeaves
       const pathMap = byPath.get(file)?.get(id);
       walkStrings(typeof record === 'string' ? record : record, typeof record === 'string' ? [] : [], (path, zh, key) => {
         texts++;
+        // Official EN client text (Act1/Act2 reuse) wins; Terra / dict only fill what the EN client lacks.
+        const reuseEn = typeof reuseMap[zh] === 'string' && reuseMap[zh] && reuseMap[zh] !== zh ? reuseMap[zh] : null;
         const pathEn = pathMap?.get(path.map(String).join('\0'));
-        const en = (typeof pathEn === 'string' && pathEn && pathEn !== zh ? pathEn : null) || translate(zh);
+        const pathOk = typeof pathEn === 'string' && pathEn && pathEn !== zh ? pathEn : null;
+        const dictEn = typeof dict[zh] === 'string' && dict[zh] && dict[zh] !== zh ? dict[zh] : null;
+        const en = reuseEn || pathOk || dictEn;
         if (!en) return;
         translated++;
-        if (pathEn && pathEn === en) fromPaths++;
-        else if (reuseMap[zh]) fromReuse++;
+        if (reuseEn && reuseEn === en) fromReuse++;
+        else if (pathOk && pathOk === en) fromPaths++;
         else fromDict++;
         leaves.push({ path, zh, en });
         const top = path.length === 1 || (path.length === 0);
@@ -140,12 +144,18 @@ export function buildVersionOverlay({ data, reuseMap = {}, dict = {}, pathLeaves
     if (names[zh] || !en || en === zh) continue;
     if ([...zh].some((ch) => ch >= '\u4e00' && ch <= '\u9fff')) names[zh] = en;
   }
+  const community = !!(meta && (meta.communityTranslated === true || meta.unofficial === true))
+    || (fromPaths + fromDict) > 0;
   const overlay = {
     version: OVERLAY_VERSION,
     lang,
     meta: {
       generator: 'tools/build-version-i18n.mjs',
       ...(meta || {}),
+      // Community / unofficial fills (Terra Archive, …) — players see a Settings note while this version's overlay is on.
+      communityTranslated: community,
+      credit: meta?.credit
+        || (community ? 'English text: Terra Archive (terra-archive.net), unofficial translation' : undefined),
       totals: { texts, translated, fromReuse, fromDict, fromPaths, pct: texts ? Math.round((translated / texts) * 1000) / 10 : 100 },
     },
     names,
@@ -214,13 +224,19 @@ export async function main(argv = process.argv.slice(2)) {
   const pathLeaves = Array.isArray(pathsDoc?.leaves) ? pathsDoc.leaves : [];
   const reuseMap = reuseMapFromBase(baseEn, baseData);
   log(`build-version-i18n: ${opts.lang} · data ${relative(ROOT, opts.data)} · reuse ${Object.keys(reuseMap).length} · dict ${Object.keys(dict).length} · paths ${pathLeaves.length}`);
+  const dictMeta = dictRaw && typeof dictRaw === 'object' ? dictRaw._meta : null;
   const { overlay, report } = buildVersionOverlay({
     data, reuseMap, dict, pathLeaves, lang: opts.lang,
     meta: {
+      communityTranslated: true,
+      credit: dictMeta?.credit
+        || 'English text: Terra Archive (terra-archive.net), unofficial translation',
       source: {
         dict: relative(ROOT, opts.dict).replace(/\\/g, '/'),
         paths: relative(ROOT, opts.paths).replace(/\\/g, '/'),
         baseEn: relative(ROOT, opts.baseEn).replace(/\\/g, '/'),
+        terra: dictMeta?.source || null,
+        terraHash: dictMeta?.hash || null,
       },
     },
   });

@@ -166,7 +166,14 @@ export function createVersionSets({ enabled, defaultId = DEFAULT_VERSION, dataDi
         const enPath = path.join(v.dir, 'i18n', 'en.json');
         if (fs.existsSync(enPath)) {
           const buf = fs.readFileSync(enPath);
-          i18n = { en: { file: 'i18n/en.json', sha256: nodeSha256(buf), bytes: buf.length } };
+          /** @type {{ file: string, sha256: string, bytes: number, communityTranslated?: boolean, credit?: string }} */
+          const entry = { file: 'i18n/en.json', sha256: nodeSha256(buf), bytes: buf.length };
+          try {
+            const doc = JSON.parse(buf.toString('utf8'));
+            if (doc?.meta?.communityTranslated === true) entry.communityTranslated = true;
+            if (typeof doc?.meta?.credit === 'string' && doc.meta.credit) entry.credit = doc.meta.credit;
+          } catch { /* hash-only entry */ }
+          i18n = { en: entry };
         }
       } catch (e) {
         log.warn(`[versions] ${id} i18n/en.json unreadable (${e?.code || e?.message || e})`);

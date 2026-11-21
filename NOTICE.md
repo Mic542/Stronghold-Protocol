@@ -13,7 +13,7 @@ Copyright (C) 2026 Stronghold-Protocol contributors
 - `tools/local-extract/aklz4.py` 来自 [isHarryh/Ark-Unpacker](https://github.com/isHarryh/Ark-Unpacker)，保持 BSD-3-Clause 许可（见 `tools/local-extract/LICENSE-Ark-Unpacker.txt`）。
 - 通过 npm 安装的第三方库（PixiJS、pixi-spine、Preact、htm、three.js、ws 等）和字体各自保留原许可证，见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
-**英文翻译致谢**：界面英文文本 `public/i18n/en.json` 与游戏文本的补充译文 `tools/i18n/fallback-pr70.json` 以 GitHub PR #70（分支 `en-translation`）中 **@YuriRestia** 的翻译为基础，经项目所有者决定（2026-10-05）署名沿用，随本项目一同以 GPL-3.0-or-later 发布；PR #70 中取自 ak-spa-database.pages.dev（未声明许可）的文本未被采用。英文游戏文本 `data/i18n/en.json` 本身是官方英文服数据（见第 2 节）。
+**英文翻译致谢**：界面英文文本 `public/i18n/en.json` 与游戏文本的补充译文 `tools/i18n/fallback-pr70.json` 以 GitHub PR #70（分支 `en-translation`）中 **@YuriRestia** 的翻译为基础，经项目所有者决定（2026-10-05）署名沿用，随本项目一同以 GPL-3.0-or-later 发布；PR #70 中取自 ak-spa-database.pages.dev（未声明许可）的文本未被采用。英文游戏文本 `data/i18n/en.json` 本身是官方英文服数据（见第 2 节）。规程（act3）版本英文游戏文本 `data/versions/act3autochess-v3_1/i18n/en.json` 以 [Terra Archive](https://terra-archive.net/) 的 TL 词典（`files.terra-archive.net/assets/tl/en/`）为主来源——*English text: Terra Archive (terra-archive.net), unofficial translation*。
 
 **附加许可（GPL-3.0 第 7 条）** — Additional permission under GNU GPL version 3 section 7:
 
@@ -70,3 +70,5 @@ purposes only: no selling, paid distribution, paid hosting, ads, donations or an
 can request removal through a GitHub issue and the content will be taken down. No warranty of any kind.
 The English UI strings were seeded from GitHub PR #70 by @YuriRestia (credited, released with the project under
 GPL-3.0-or-later); the English game texts (`data/i18n/en.json`) are official EN client data like `data/*.json`.
+Act3 (规程) version English (`data/versions/act3autochess-v3_1/i18n/en.json`) is primarily from Terra Archive’s TL
+dictionary — English text: Terra Archive (terra-archive.net), unofficial translation.

@@ -65,3 +65,18 @@ test('path leaves win over missing dict for the same record field', () => {
   assert.equal(overlay.files.chess.chess_x.skill.descRaw, 'ATK +80%');
   assert.ok(report.totals.fromPaths >= 1);
 });
+
+test('official reuse wins over Terra path leaves for the same Chinese text', () => {
+  const data = { bonds: { b1: { name: '炎', descRaw: '官方同文' } } };
+  const { overlay, report } = buildVersionOverlay({
+    data,
+    reuseMap: { '炎': 'Yan', '官方同文': 'Official EN client wording' },
+    dict: { '官方同文': 'Terra unofficial wording' },
+    pathLeaves: [{ file: 'bonds', id: 'b1', path: ['descRaw'], en: 'Terra unofficial wording' }],
+    meta: { communityTranslated: true, credit: 'English text: Terra Archive (terra-archive.net), unofficial translation' },
+  });
+  assert.equal(overlay.files.bonds.b1.descRaw, 'Official EN client wording');
+  assert.ok(report.totals.fromReuse >= 1);
+  assert.equal(overlay.meta.communityTranslated, true);
+  assert.match(overlay.meta.credit, /Terra Archive/);
+});

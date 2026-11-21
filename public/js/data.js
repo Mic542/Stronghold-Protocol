@@ -496,6 +496,20 @@ export function createDataStore(opts = {}) {
     /** The languages whose overlays apply now, best first (empty in Chinese). */
     localeChain: () => [...chain],
     /**
+     * Meta of the content set's own game-text overlay for the language in effect (version i18n), or null.
+     * Used for the Settings community-translation note (docs/I18N.md §5 / act3 Terra fills).
+     * @returns {{ communityTranslated: boolean, credit?: string } | null}
+     */
+    contentGameTextMeta() {
+      if (locale === 'zh' || !content) return null;
+      const o = overlays.get(locale);
+      if (!o?.meta || o.meta.communityTranslated !== true) return null;
+      return {
+        communityTranslated: true,
+        ...(typeof o.meta.credit === 'string' && o.meta.credit ? { credit: o.meta.credit } : {}),
+      };
+    },
+    /**
      * Switch the game texts' language: 'zh' at once; another language once the overlays of `chain` (default: the
      * language alone) have downloaded — those that fail are left out. When every overlay of a non-empty chain fails the
      * locale does not change (the texts stay as they are); an empty chain (a pack without game texts) switches with

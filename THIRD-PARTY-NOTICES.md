@@ -67,6 +67,12 @@ it took from ak-spa-database.pages.dev (no licence) are excluded; arknights.wiki
 into a GPL-3.0 work (the one-way compatibility Creative Commons declared) — thanks to its contributors. Official game
 terms and names in those files remain © Hypergryph / Yostar.
 
+Act3 / 规程 version English (`data/versions/act3autochess-v3_1/i18n/en.json`, built via `tools/i18n/import-terra-act3-en.mjs`)
+uses [Terra Archive](https://terra-archive.net/)’s Chinese→English TL dictionary
+(`https://files.terra-archive.net/assets/tl/en/manifest.json`). Terms of use require attribution as an unofficial
+translation: **English text: Terra Archive (terra-archive.net), unofficial translation**. Official Hypergryph / Yostar
+names and text remain theirs; Terra grants rights only to the translation.
+
 ---
 
 ## Licence texts
