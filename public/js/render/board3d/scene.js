@@ -444,10 +444,12 @@ export class BoardScene {
     const buckets = new Map();
     // 规程's scene is its three pieces whole (regulation_scenes.py layout 'pieces'): the stage a view draws names the
     // one piece it shows and where that piece's cells are in the grid (render/arenaView.js scenePiece). A pieces scene
-    // without that, or a stage with it on a scene cut before (an older extract), is not drawn: the procedural board shows.
+    // without that is not drawn. A pre-v5 extract (no layout:'pieces', cut into the 19×21 board) still draws under a
+    // 规程 arena stage — otherwise the board stays procedural until re-extraction (docs/ASSETS.md). Local fork: keep
+    // those older scenes working without forcing setup --scenes.
     const pieces = pack.doc?.layout === 'pieces';
-    const piece = this.stage?.scenePiece || null;
-    if (pieces !== !!piece) return false;
+    const piece = pieces ? (this.stage?.scenePiece || null) : null;
+    if (pieces && !piece) return false;
     for (const c of pack.chunks || []) {
       if (pieces ? c.group !== piece.group : c.group && !sceneGroupVisible(pack.groups?.[c.group], this.area, c.group)) continue;
       const info = infos[c.material] || null;
